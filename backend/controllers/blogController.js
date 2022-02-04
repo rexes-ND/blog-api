@@ -1,8 +1,13 @@
 const Blog = require("../models/blogModel");
+const APIFeatures = require("../utils/apiFeatures");
 
 module.exports.getAllBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find();
+    const features = new APIFeatures(
+      Blog.find(),
+      req.query
+    );
+    const blogs = await features.query;
     res.status(200).json({
       status: "success",
       data: {
@@ -58,6 +63,7 @@ module.exports.updateBlog = async (req, res) => {
       req.body,
       {
         new: true,
+        runValidator: true,
       }
     );
 
