@@ -1,8 +1,10 @@
 const Blog = require("../models/blogModel");
 const APIFeatures = require("../utils/apiFeatures");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 
-module.exports.getAllBlogs = async (req, res) => {
-  try {
+module.exports.getAllBlogs = catchAsync(
+  async (req, res, next) => {
     const features = new APIFeatures(
       Blog.find(),
       req.query
@@ -14,33 +16,28 @@ module.exports.getAllBlogs = async (req, res) => {
         blogs,
       },
     });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
   }
-};
+);
 
-module.exports.getBlog = async (req, res) => {
-  try {
+module.exports.getBlog = catchAsync(
+  async (req, res, next) => {
     const blog = await Blog.findById(req.params.id);
+    if (!blog) {
+      return next(
+        new AppError("No blog found with that ID", 404)
+      );
+    }
     res.status(200).json({
       status: "success",
       data: {
         blog,
       },
     });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
   }
-};
+);
 
-module.exports.createBlog = async (req, res) => {
-  try {
+module.exports.createBlog = catchAsync(
+  async (req, res, next) => {
     const newBlog = await Blog.create(req.body);
     res.status(201).json({
       status: "success",
@@ -48,16 +45,11 @@ module.exports.createBlog = async (req, res) => {
         blog: newBlog,
       },
     });
-  } catch (err) {
-    res.status(400).json({
-      status: "fail",
-      message: err,
-    });
   }
-};
+);
 
-module.exports.updateBlog = async (req, res) => {
-  try {
+module.exports.updateBlog = catchAsync(
+  async (req, res, next) => {
     const blog = await Blog.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -67,32 +59,32 @@ module.exports.updateBlog = async (req, res) => {
       }
     );
 
+    if (!blog) {
+      return next(
+        new AppError("No blog found with that ID", 404)
+      );
+    }
+
     res.status(200).json({
       status: "success",
       data: {
         blog,
       },
     });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
   }
-};
+);
 
-module.exports.deleteBlog = async (req, res) => {
-  try {
-    await Blog.findByIdAndDelete(req.params.id);
+module.exports.deleteBlog = catchAsync(async (req, res) => {
+  const blog = await Blog.findByIdAndDelete(req.params.id);
 
-    res.status(204).json({
-      status: "success",
-      data: null,
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
+  if (!blog) {
+    return next(
+      new AppError("No blog found with that ID", 404)
+    );
   }
-};
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});
