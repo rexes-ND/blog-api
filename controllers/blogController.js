@@ -1,8 +1,8 @@
 const Blog = require("../models/blogModel");
 
 module.exports.getAllBlogs = async (req, res) => {
-  const blogs = await Blog.find();
   try {
+    const blogs = await Blog.find();
     res.status(200).json({
       status: "success",
       data: {
@@ -22,9 +22,9 @@ module.exports.getBlog = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
     if (!blog) {
-      res.status(404).json({
+      return res.status(404).json({
         status: "fail",
-        message: "No blog found with that ID",
+        message: "No blog found with given ID",
       });
     }
     res.status(200).json({
@@ -52,6 +52,12 @@ module.exports.createBlog = async (req, res, next) => {
       },
     });
   } catch (err) {
+    if (err.name == "ValidationError") {
+      return res.status(400).json({
+        status: "fail",
+        message: err.message,
+      });
+    }
     console.log(err.message);
     res.status(500).json({
       status: "fail",
@@ -67,12 +73,12 @@ module.exports.updateBlog = async (req, res, next) => {
       req.body,
       {
         new: true,
-        runValidator: true,
+        runValidators: true,
       }
     );
 
     if (!blog) {
-      res.status(404).json({
+      return res.status(404).json({
         status: "fail",
         message: "No blog found with that ID",
       });
@@ -85,6 +91,18 @@ module.exports.updateBlog = async (req, res, next) => {
       },
     });
   } catch (err) {
+    if (err.name == "ValidationError") {
+      const errors = Object.values(err.errors).map(
+        (el) => el.message
+      );
+      const message = `Invalid input data. ${errors.join(
+        ". "
+      )}`;
+      return res.status(400).json({
+        status: "fail",
+        message: message,
+      });
+    }
     console.log(err.message);
     res.status(500).json({
       status: "fail",
@@ -100,7 +118,7 @@ module.exports.deleteBlog = async (req, res) => {
     );
 
     if (!blog) {
-      res.status(404).json({
+      return res.status(404).json({
         status: "fail",
         message: "No blog found with that ID",
       });

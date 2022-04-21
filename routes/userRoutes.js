@@ -16,17 +16,15 @@ router.patch(
   authController.resetPassword
 );
 
-router.route("/").get(userController.getAllUsers);
-//   .post(userController.createUser);
+router
+  .route("/")
+  .get(userController.getAllUsers)
+  .post(userController.createUser);
 
-// router
-//   .route("/:id")
-//   //   .get(userController.getUser)
-//   //   .patch(userController.updateUser)
-//   .delete(
-//     authController.protect,
-//     // authController.restrictTo("admin"),
-//     userController.deleteUser
-//   );
+router
+  .route("/:id")
+  .get(userController.getUser)
+  .patch(userController.updateUser)
+  .delete(userController.deleteUser);
 
 module.exports = router;
