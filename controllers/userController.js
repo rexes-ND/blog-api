@@ -73,7 +73,9 @@ module.exports.createUser = async (req, res, next) => {
 
 module.exports.updateUser = async (req, res, next) => {
   try {
-    const user = User.findByIdAndUpdate(
+    // console.log(req.body);
+
+    const user = await User.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -81,11 +83,10 @@ module.exports.updateUser = async (req, res, next) => {
         runValidators: true,
       }
     );
-
     if (!user) {
       return res.status(404).json({
         status: "fail",
-        message: "No blog found with given ID",
+        message: "No user found with given ID",
       });
     }
 
@@ -97,6 +98,18 @@ module.exports.updateUser = async (req, res, next) => {
     });
   } catch (err) {
     console.log(err.message);
+    if (err.name == "ValidationError") {
+      const errors = Object.values(err.errors).map(
+        (el) => el.message
+      );
+      const message = `Invalid input data. ${errors.join(
+        ". "
+      )}`;
+      return res.status(400).json({
+        status: "fail",
+        message: message,
+      });
+    }
     res.status(500).json({
       status: "fail",
       message: "Something went very wrong",

@@ -1,9 +1,6 @@
 const crypto = require("crypto");
-const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
-const catchAsync = require("../utils/catchAsync");
-const AppError = require("../utils/appError");
 const sendEmail = require("../utils/email");
 
 const signToken = (id) => {
@@ -12,15 +9,20 @@ const signToken = (id) => {
   });
 };
 
-module.exports.signup = catchAsync(
-  async (req, res, next) => {
+module.exports.signup = async (req, res, next) => {
+  try {
+    if (req.body.password != req.body.passwordConfirm) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Please your password again!",
+      });
+    }
     const newUser = await User.create({
       name: req.body.name,
       email: req.body.email,
       role: req.body.role,
       password: req.body.password,
-      passwordConfirm: req.body.passwordConfirm,
-      passwordChangedAt: req.body.passwordChangedAt,
+      passwordChangedAt: Date.now(),
     });
 
     const token = signToken(newUser._id);
@@ -32,33 +34,37 @@ module.exports.signup = catchAsync(
         user: newUser,
       },
     });
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).json({
+      status: "fail",
+      message: "Something went very wrong",
+    });
   }
-);
+};
 
-module.exports.login = catchAsync(
-  async (req, res, next) => {
+module.exports.login = async (req, res, next) => {
+  try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return next(
-        new AppError("Email or Password is missing"),
-        400
-      );
+      return res.status(400).json({
+        status: "fail",
+        message: "Email or Password is missing",
+      });
     }
 
     const user = await User.findOne({ email }).select(
-      "+password"
+      "+password" // Necessary since password is not selected by default
     );
     if (
       !user ||
       !(await user.correctPassword(password, user.password))
     ) {
-      return next(
-        new AppError(
-          "Email or Password is not correct",
-          401
-        )
-      );
+      return res.status(404).json({
+        status: "fail",
+        message: "Failed to login",
+      });
     }
 
     const token = signToken(user._id);
@@ -67,12 +73,19 @@ module.exports.login = catchAsync(
       status: "success",
       token,
     });
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).json({
+      status: "fail",
+      message: "Something went very wrong",
+    });
   }
-);
+};
 
-module.exports.protect = catchAsync(
-  async (req, res, next) => {
+module.exports.protect = async (req, res, next) => {
+  try {
     let token;
+    // console.log(req.headers);
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
@@ -80,73 +93,78 @@ module.exports.protect = catchAsync(
       token = req.headers.authorization.split(" ")[1];
     }
     if (!token) {
-      return next(
-        new AppError("User must login first", 401)
-      );
+      return res.status(401).json({
+        status: "fail",
+        message: "User must login first",
+      });
     }
 
-    const decoded = await promisify(jwt.verify)(
+    const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET
     );
-
+    // console.log(decoded);
     const currentUser = await User.findById(decoded.id);
     if (!currentUser) {
-      return next(
-        new AppError(
-          "The user belonging to this token does not exist."
-        ),
-        401
-      );
+      return res.status(401).json({
+        status: "fail",
+        message:
+          "The user belonging to this token does not exist",
+      });
     }
 
     if (currentUser.changedPasswordAfter(decoded.iat)) {
-      return next(
-        new AppError("The user changed the password!", 401)
-      );
+      return res.status(401).json({
+        status: "fail",
+        message: "The user changed the password",
+      });
     }
 
     req.user = currentUser;
     next();
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).json({
+      status: "fail",
+      message: "Something went very wrong",
+    });
   }
-);
+};
 
 module.exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return next(
-        new AppError(
-          "You do not have permission to perform this action.",
-          403
-        )
-      );
+      return res.status(403).json({
+        status: "fail",
+        message:
+          "You do not have permission to perform this action",
+      });
     }
 
     next();
   };
 };
 
-module.exports.forgotPassword = catchAsync(
-  async (req, res, next) => {
+module.exports.forgotPassword = async (req, res, next) => {
+  try {
     const user = await User.findOne({
       email: req.body.email,
     });
     if (!user) {
-      return next(
-        new AppError(
-          "There is no user with given email.",
-          404
-        )
-      );
+      return res.status(404).json({
+        status: "fail",
+        message: "There is no user with given email",
+      });
     }
     const resetToken = user.createPasswordResetToken();
+    // await user.save();
     await user.save({ validateBeforeSave: false });
 
     const resetURL = `${req.protocol}://${req.get(
       "host"
     )}/api/users/resetPassword/${resetToken}`;
 
-    const message = `Submit a PATCH request with your new password and passwordConfirm to following URL: ${resetURL}.\n`;
+    const message = `Submit a PATCH request with your new password and password confirm to following URL: ${resetURL}.\n`;
     try {
       await sendEmail({
         email: user.email,
@@ -164,18 +182,23 @@ module.exports.forgotPassword = catchAsync(
       user.passwordResetExpires = undefined;
       await user.save({ validateBeforeSave: false });
 
-      next(
-        new AppError(
-          "There was an error sending the email. Try again later!"
-        ),
-        500
-      );
+      res.status(500).json({
+        status: "fail",
+        message:
+          "There was an error sending the email. Try again later!",
+      });
     }
+  } catch (err) {
+    console.log(err.message);
+    res.json({
+      status: "fail",
+      message: "Something went very wrong",
+    });
   }
-);
+};
 
-module.exports.resetPassword = catchAsync(
-  async (req, res, next) => {
+module.exports.resetPassword = async (req, res, next) => {
+  try {
     const hashedToken = crypto
       .createHash("sha256")
       .update(req.params.token)
@@ -187,13 +210,21 @@ module.exports.resetPassword = catchAsync(
     });
 
     if (!user) {
-      return next(
-        new AppError("Token is invalid or expired", 404)
-      );
+      return res.status(404).json({
+        status: "fail",
+        message: "Token is invalid or expired",
+      });
     }
 
+    // user.password = req.body.password;
+    // user.passwordConfirm = req.body.passwordConfirm;
+    if (req.body.password != user.passwordConfirm) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Passwords doesn't match",
+      });
+    }
     user.password = req.body.password;
-    user.passwordConfirm = req.body.passwordConfirm;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
@@ -204,5 +235,11 @@ module.exports.resetPassword = catchAsync(
       status: "success",
       token,
     });
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).json({
+      status: "fail",
+      message: "Something went very wrong",
+    });
   }
-);
+};
