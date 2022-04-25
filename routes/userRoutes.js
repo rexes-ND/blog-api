@@ -20,12 +20,12 @@ router
   .route("/")
   .get(
     authController.protect,
-    authController.restrictTo(["admin"]),
+    authController.restrictTo("admin"),
     userController.getAllUsers
   )
   .post(
     authController.protect,
-    authController.restrictTo(["admin"]),
+    authController.restrictTo("admin"),
     userController.createUser
   );
 
@@ -33,17 +33,17 @@ router
   .route("/:id")
   .get(
     authController.protect,
-    authController.restrictTo(["admin"]),
+    authController.restrictTo("admin"),
     userController.getUser
   )
   .patch(
     authController.protect,
-    authController.restrictTo(["admin"]),
+    authController.restrictTo("admin"),
     userController.updateUser
   )
   .delete(
     authController.protect,
-    authController.restrictTo(["admin"]),
+    authController.restrictTo("admin"),
     userController.deleteUser
   );
 

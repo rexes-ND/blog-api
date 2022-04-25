@@ -17,7 +17,10 @@ const blogSchema = new mongoose.Schema({
     type: String,
     require: [true, "A blog must have a text"],
   },
-  userid: String,
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   visibility: {
     type: String,
     enum: ["public", "private"],

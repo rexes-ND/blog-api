@@ -14,7 +14,7 @@ module.exports.signup = async (req, res, next) => {
     if (req.body.password != req.body.passwordConfirm) {
       return res.status(400).json({
         status: "fail",
-        message: "Please your password again!",
+        message: "Please check your password again!",
       });
     }
     const newUser = await User.create({
@@ -133,6 +133,7 @@ module.exports.protect = async (req, res, next) => {
 
 module.exports.restrictTo = (...roles) => {
   return (req, res, next) => {
+    // console.log(roles);
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         status: "fail",
@@ -218,7 +219,7 @@ module.exports.resetPassword = async (req, res, next) => {
 
     // user.password = req.body.password;
     // user.passwordConfirm = req.body.passwordConfirm;
-    if (req.body.password != user.passwordConfirm) {
+    if (req.body.password != req.body.passwordConfirm) {
       return res.status(400).json({
         status: "fail",
         message: "Passwords doesn't match",

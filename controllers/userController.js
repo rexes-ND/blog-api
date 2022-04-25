@@ -44,7 +44,7 @@ module.exports.getUser = async (req, res, next) => {
 
 module.exports.createUser = async (req, res, next) => {
   try {
-    const newUser = await User.create(req.body);
+    const newUser = await User.create({ ...req.body });
     res.status(201).json({
       status: "success",
       data: {
@@ -64,6 +64,7 @@ module.exports.createUser = async (req, res, next) => {
         message: message,
       });
     }
+    console.log(err.message);
     res.status(500).json({
       status: "fail",
       message: "Something went very wrong",

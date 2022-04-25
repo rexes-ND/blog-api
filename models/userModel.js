@@ -53,9 +53,7 @@ userSchema.pre("findOneAndUpdate", async function (next) {
 });
 
 userSchema.pre("save", function (next) {
-  if (!this.isModified("password") || this.isNew)
-    return next();
-  // password is modified and not new
+  if (!this.isModified("password")) return next();
   this.passwordChangedAt = Date.now();
   next();
 });
